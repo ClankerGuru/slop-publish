@@ -101,7 +101,8 @@ class BouncyCastleSigner(
         }
         
         fun extractKeyId(key: PGPSecretKey): String {
-            return java.lang.Long.toHexString(key.keyID).uppercase().takeLast(8)
+            // Format lower 32 bits as exactly 8 hex digits with zero padding
+            return "%08X".format(key.keyID and 0xFFFFFFFFL)
         }
     }
 }

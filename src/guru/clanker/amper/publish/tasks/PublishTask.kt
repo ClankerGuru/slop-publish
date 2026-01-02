@@ -160,8 +160,8 @@ private fun resolveSigningCredentials(signing: SigningSettings, moduleDir: Path)
         if (propsFile.exists()) {
             val props = Properties().apply { propsFile.inputStream().use { load(it) } }
             val keyId = props.getProperty(credentials.keyIdKey) ?: signing.keyId
-            val key = props.getProperty(credentials.keyKey) ?: ""
-            val password = props.getProperty(credentials.passwordKey) ?: ""
+            val key = props.getProperty(credentials.keyKey) ?: signing.key
+            val password = props.getProperty(credentials.passwordKey) ?: signing.password
             return SigningCredentials(keyId, key, password)
         }
     }

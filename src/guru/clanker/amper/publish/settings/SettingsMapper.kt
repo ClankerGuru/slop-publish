@@ -17,7 +17,9 @@ object SettingsMapper {
             "central" -> Repository.CentralPortal(
                 id = settings.id,
                 url = settings.url.ifEmpty { "https://central.sonatype.com/api/v1/publisher/upload" },
-                token = settings.credentials?.password ?: System.getenv("CENTRAL_TOKEN") ?: "",
+                token = settings.credentials?.password 
+                    ?: System.getenv("CENTRAL_TOKEN") 
+                    ?: error("Central Portal token required: set credentials.password or CENTRAL_TOKEN environment variable"),
                 publishingType = Repository.CentralPortal.PublishingType.AUTOMATIC
             )
             "github" -> Repository.GitHubPackages(
