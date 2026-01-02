@@ -44,7 +44,7 @@ plugins:
     enabled: true
     groupId: guru.clanker
     artifactId: slop-publish
-    version: 1.0.4
+    version: 1.0.5
     artifacts:
       - jar
       - sources
