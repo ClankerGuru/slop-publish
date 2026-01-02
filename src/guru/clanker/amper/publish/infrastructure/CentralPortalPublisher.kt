@@ -33,13 +33,33 @@ class CentralPortalPublisher : PublishingService {
 
         val tempDir = Files.createTempDirectory("central-bundle")
         try {
-            val bundleZip = createBundle(publication, tempDir)
+            publication.artifacts.forEach { artifact ->
+                if (!artifact.file.toFile().exists()) {
+                    return PublishingResult.Failure(
+                        publication,
+                        repository,
+                        PublishingError.ValidationError("Artifact not found: ${artifact.file}")
+                    )
+                }
+            }
+            
+            val bundleZip = try {
+                createBundle(publication, tempDir)
+            } catch (e: Exception) {
+                return PublishingResult.Failure(
+                    publication,
+                    repository,
+                    PublishingError.ValidationError("Bundle creation failed: ${e::class.simpleName}: ${e.message}")
+                )
+            }
+            
             return uploadBundle(bundleZip, publication, repository)
         } catch (e: Exception) {
+            val cause = e.cause?.let { " caused by ${it::class.simpleName}: ${it.message}" } ?: ""
             return PublishingResult.Failure(
                 publication,
                 repository,
-                PublishingError.NetworkError("Upload failed: ${e.message}", e)
+                PublishingError.NetworkError("Upload failed: ${e::class.simpleName}: ${e.message}$cause", e)
             )
         } finally {
             tempDir.toFile().deleteRecursively()
@@ -137,6 +157,7 @@ class CentralPortalPublisher : PublishingService {
                 header(HttpHeaders.Authorization, "Bearer ${repository.token}")
             }
 
+            val body = response.bodyAsText()
             if (response.status.isSuccess()) {
                 val checksum = ChecksumGenerator.generate(bundleZip)
                 PublishingResult.Success(
@@ -153,11 +174,13 @@ class CentralPortalPublisher : PublishingService {
                         }
                 )
             } else {
-                val body = response.bodyAsText()
                 PublishingResult.Failure(
                     publication,
                     repository,
-                    PublishingError.NetworkError("HTTP ${response.status.value}: $body", null)
+                    PublishingError.NetworkError(
+                        "HTTP ${response.status.value} ${response.status.description}: $body",
+                        null
+                    )
                 )
             }
         } finally {
