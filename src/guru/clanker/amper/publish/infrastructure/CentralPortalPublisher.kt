@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.isRegularFile
@@ -94,7 +95,7 @@ class CentralPortalPublisher : PublishingService {
         publication.artifacts.forEach { artifact ->
             val targetName = buildArtifactName(coords, artifact)
             val targetPath = artifactDir.resolve(targetName)
-            Files.copy(artifact.file, targetPath)
+            Files.copy(artifact.file, targetPath, StandardCopyOption.REPLACE_EXISTING)
             
             if (!artifact.extension.endsWith(".asc") && 
                 !artifact.extension.endsWith(".md5") && 
