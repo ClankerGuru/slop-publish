@@ -9,14 +9,26 @@
 
 Maven publishing plugin for Amper build system.
 
-> **Note**: This plugin may be deprecated if JetBrains adds native Maven publishing support to Amper.
-> We'll update this README if that happens.
+> **Note**: This plugin may be deprecated if JetBrains adds native Maven publishing and plugin import/export support to Amper. We'll update this README when that happens.
 
-## Current Limitation
+## Current Limitation (Temporary)
 
-**Amper does not yet support importing plugins from Maven repositories.** You must include the plugin source in your project. See [Installation](#installation) for options.
+**Amper does not yet support:**
+1. **Importing plugins from Maven** - You must include plugin source in your project
+2. **Publishing libraries to Maven** - Hence this plugin exists
 
-This is an Amper limitation, not a plugin limitation. JetBrains is aware and may add external plugin support in a future release. Track progress at [JetBrains/amper](https://github.com/JetBrains/amper).
+These are temporary Amper limitations. JetBrains is expected to add both plugin import/export and native Maven publishing support in future releases. **This plugin may become unnecessary once Amper has built-in publishing.**
+
+Until then, see [Installation](#installation) for temporary workarounds to use this plugin.
+
+Once JetBrains adds external plugin support, installation will be as simple as:
+```yaml
+# project.yaml (future - not yet supported)
+plugins:
+  - guru.clanker:slop-publish:1.0.5
+```
+
+Track Amper progress at [JetBrains/amper](https://github.com/JetBrains/amper).
 
 ## Features
 
@@ -33,6 +45,8 @@ This is an Amper limitation, not a plugin limitation. JetBrains is aware and may
 - Amper build system
 
 ## Installation
+
+> **Temporary Workaround**: The installation methods below are temporary until JetBrains adds external plugin import/export support to Amper. Once available, you'll be able to simply reference `guru.clanker:slop-publish:1.0.5` in your `project.yaml`. We'll update these docs when that happens.
 
 Since Amper doesn't support external plugin imports yet, you need to include the plugin source in your project.
 
