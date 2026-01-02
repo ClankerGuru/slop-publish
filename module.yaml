@@ -39,6 +39,34 @@ test-dependencies:
   - $libs.testcontainers.junit
   - $libs.junit.jupiter
 
+plugins:
+  slop-publish:
+    enabled: true
+    groupId: guru.clanker
+    artifactId: slop-publish
+    version: 1.0.0
+    artifacts:
+      - jar
+    repositories: []
+    pom:
+      name: Slop Publish
+      description: Maven publishing plugin for JetBrains Amper build system
+      url: https://github.com/ClankerGuru/slop-publish
+      licenses:
+        - name: MIT License
+          url: https://opensource.org/licenses/MIT
+      developers:
+        - id: clankerguru
+          name: Clanker Guru
+      scm:
+        url: https://github.com/ClankerGuru/slop-publish
+        connection: scm:git:git://github.com/ClankerGuru/slop-publish.git
+        developerConnection: scm:git:ssh://github.com/ClankerGuru/slop-publish.git
+    signing:
+      enabled: true
+      credentials:
+        file: ./local.properties
+
 settings:
   jvm:
     release: 17

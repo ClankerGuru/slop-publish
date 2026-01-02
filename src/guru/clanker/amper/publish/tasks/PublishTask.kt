@@ -11,7 +11,9 @@ import guru.clanker.amper.publish.settings.*
 import org.jetbrains.amper.plugins.Input
 import org.jetbrains.amper.plugins.TaskAction
 import java.nio.file.Path
+import java.util.Properties
 import kotlin.io.path.exists
+import kotlin.io.path.inputStream
 
 @TaskAction
 fun publish(
@@ -53,10 +55,8 @@ fun publish(
         val repository = SettingsMapper.toRepository(repoSettings)
 
         val finalPublication = if (shouldSign(settings, repoSettings.id)) {
-            val signer = BouncyCastleSigner(
-                armoredKey = settings.signing?.key ?: "",
-                passphrase = settings.signing?.password ?: ""
-            )
+            val creds = resolveSigningCredentials(settings.signing!!, moduleDir)
+            val signer = BouncyCastleSigner(creds.armoredKey, creds.passphrase, creds.keyId)
             signer.signPublication(publicationWithPom)
         } else {
             publicationWithPom
@@ -128,6 +128,40 @@ private fun findBuildDir(moduleDir: Path): Path {
         current = current.parent
     }
     return moduleDir.resolve("build")
+}
+
+private val BRACKETED_ENV_VAR = Regex("""\$\{(\w+)}""")
+private val DOLLAR_ENV_VAR = Regex("""\$(\w+)""")
+
+private data class SigningCredentials(val keyId: String, val armoredKey: String, val passphrase: String)
+
+private fun resolveSigningCredentials(signing: SigningSettings, moduleDir: Path): SigningCredentials {
+    val credentials = signing.credentials
+    
+    if (credentials != null && credentials.file.isNotBlank()) {
+        val propsFile = moduleDir.resolve(credentials.file)
+        if (propsFile.exists()) {
+            val props = Properties().apply { propsFile.inputStream().use { load(it) } }
+            val keyId = props.getProperty(credentials.keyIdKey) ?: signing.keyId
+            val key = props.getProperty(credentials.keyKey) ?: ""
+            val password = props.getProperty(credentials.passwordKey) ?: ""
+            return SigningCredentials(keyId, key, password)
+        }
+    }
+    
+    val keyId = signing.keyId.ifBlank { System.getenv("GPG_KEY_ID") ?: "" }
+    val key = resolveEnvOrLiteral(signing.key, "GPG_SECRET_KEY")
+    val password = resolveEnvOrLiteral(signing.password, "GPG_PASSPHRASE")
+    return SigningCredentials(keyId, key, password)
+}
+
+private fun resolveEnvOrLiteral(value: String, envFallback: String): String {
+    if (value.isBlank()) return System.getenv(envFallback) ?: ""
+    
+    BRACKETED_ENV_VAR.matchEntire(value)?.let { return System.getenv(it.groupValues[1]) ?: "" }
+    DOLLAR_ENV_VAR.matchEntire(value)?.let { return System.getenv(it.groupValues[1]) ?: "" }
+    
+    return value
 }
 
 private fun handleResult(result: PublishingResult) {

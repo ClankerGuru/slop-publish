@@ -14,7 +14,8 @@ import java.security.Security
 
 class BouncyCastleSigner(
     private val armoredKey: String,
-    private val passphrase: String
+    private val passphrase: String,
+    private val expectedKeyId: String = ""
 ) {
     init {
         if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
@@ -29,6 +30,16 @@ class BouncyCastleSigner(
 
         val signaturePath = file.resolveSibling("${file.fileName}.asc")
         val signingKey = loadSecretKey(armoredKey)
+        
+        if (expectedKeyId.isNotBlank()) {
+            val actualKeyId = extractKeyId(signingKey)
+            val normalizedExpected = expectedKeyId.uppercase().takeLast(8)
+            if (actualKeyId != normalizedExpected) {
+                throw IllegalStateException(
+                    "GPG key ID mismatch: expected $normalizedExpected but loaded key has ID $actualKeyId"
+                )
+            }
+        }
 
         val privateKey = signingKey.extractPrivateKey(
             JcePBESecretKeyDecryptorBuilder()
@@ -87,6 +98,10 @@ class BouncyCastleSigner(
             return keyRing.keyRings.asSequence()
                 .flatMap { it.secretKeys.asSequence() }
                 .first { it.isSigningKey }
+        }
+        
+        fun extractKeyId(key: PGPSecretKey): String {
+            return java.lang.Long.toHexString(key.keyID).uppercase().takeLast(8)
         }
     }
 }

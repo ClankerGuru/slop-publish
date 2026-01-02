@@ -38,8 +38,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
+      
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_SECRET_KEY }}" | gpg --batch --import
       
       - name: Cache Amper
         uses: actions/cache@v4
@@ -49,79 +51,56 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-amper-
       
-      - name: Build
-        run: ./amper build
+      - name: Build and Test
+        run: |
+          ./amper build
+          ./amper test
       
-      - name: Test
-        run: ./amper test
+      - name: Update version in module.yaml
+        run: |
+          sed -i "s/version: 1.0.0/version: ${{ env.VERSION }}/" module.yaml
+          grep "version:" module.yaml
+      
+      - name: Publish to local repository
+        run: ./amper task :slop-publish:publishLocal@slop-publish
       
       - name: Prepare bundle for Central Portal
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
         run: |
+          # Use artifacts from local Maven repo
+          LOCAL_REPO="$HOME/.m2/repository"
           GROUP_PATH=$(echo "${{ env.GROUP_ID }}" | tr '.' '/')
+          SOURCE_DIR="$LOCAL_REPO/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}"
+          
+          # Create bundle directory
           BUNDLE_DIR="bundle/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}"
           mkdir -p "$BUNDLE_DIR"
           
-          # Copy main JAR
-          cp build/tasks/_slop-publish_jarJvm/slop-publish-jvm.jar "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar"
+          # Copy JAR and POM (already have checksums from publishLocal)
+          cp "$SOURCE_DIR"/*.jar "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar"
+          cp "$SOURCE_DIR"/*.pom "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom"
           
           # Create sources JAR
           jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-sources.jar" -C src .
           
           # Create javadoc JAR (placeholder)
           mkdir -p javadoc
-          echo "<html><body>Javadoc placeholder</body></html>" > javadoc/index.html
+          echo "<html><body><h1>slop-publish ${{ env.VERSION }}</h1><p>Maven publishing plugin for JetBrains Amper</p></body></html>" > javadoc/index.html
           jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-javadoc.jar" -C javadoc .
           
-          # Generate POM
-          cat > "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>guru.clanker</groupId>
-  <artifactId>slop-publish</artifactId>
-  <version>${VERSION}</version>
-  <packaging>jar</packaging>
-  <name>Slop Publish</name>
-  <description>Maven publishing plugin for JetBrains Amper build system</description>
-  <url>https://github.com/ClankerGuru/slop-publish</url>
-  <licenses>
-    <license>
-      <name>MIT License</name>
-      <url>https://opensource.org/licenses/MIT</url>
-    </license>
-  </licenses>
-  <developers>
-    <developer>
-      <id>clankerguru</id>
-      <name>Clanker Guru</name>
-    </developer>
-  </developers>
-  <scm>
-    <url>https://github.com/ClankerGuru/slop-publish</url>
-    <connection>scm:git:git://github.com/ClankerGuru/slop-publish.git</connection>
-    <developerConnection>scm:git:ssh://github.com/ClankerGuru/slop-publish.git</developerConnection>
-  </scm>
-</project>
-EOF
-          
-          # Generate checksums and signatures for each artifact
+          # Generate checksums and sign all artifacts
           cd "$BUNDLE_DIR"
           for file in *.jar *.pom; do
-            # MD5
             md5sum "$file" | cut -d' ' -f1 > "$file.md5"
-            # SHA1  
             sha1sum "$file" | cut -d' ' -f1 > "$file.sha1"
-            # GPG signature
-            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" -ab "$file"
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+                --local-user "$GPG_KEY_ID" -ab "$file"
           done
           
-          # Create the bundle zip
-          cd ${{ github.workspace }}
-          cd bundle
+          # Create bundle zip
+          cd ${{ github.workspace }}/bundle
           zip -r ../bundle.zip .
           
           echo "Bundle contents:"
