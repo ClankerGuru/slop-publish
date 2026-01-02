@@ -8,6 +8,9 @@ import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class LocalRepositoryPublisher(
     private val localRepoPath: Path = defaultLocalRepo()
@@ -121,10 +124,15 @@ class LocalRepositoryPublisher(
                 appendLine("      <version>$v</version>")
             }
             appendLine("    </versions>")
-            appendLine("    <lastUpdated>${System.currentTimeMillis()}</lastUpdated>")
+            appendLine("    <lastUpdated>${formatLastUpdated()}</lastUpdated>")
             appendLine("  </versioning>")
             appendLine("</metadata>")
         }
+    }
+
+    private fun formatLastUpdated(): String {
+        val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
+        return Instant.now().atZone(ZoneOffset.UTC).format(formatter)
     }
 
     companion object {

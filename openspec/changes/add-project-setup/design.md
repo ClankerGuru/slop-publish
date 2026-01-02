@@ -71,8 +71,8 @@ Gradle markers. Tests must check imports at file level, not class level.
 | ktor-client-* | 2.3.7 | HTTP client | infrastructure/ |
 | kotlinx-serialization | 1.6.2 | JSON/XML | config/, maven/pom/ |
 | kaml | 0.55.0 | YAML parsing | config/ |
-| bcpg-jdk18on | 1.77 | PGP signing | maven/signing/ |
-| konsist | 0.13.0 | Architecture tests | test only |
+| bcpg-jdk18on | 1.82 | PGP signing | maven/signing/ |
+| konsist | 0.17.3 | Architecture tests | test only |
 
 ## Risks & Trade-offs
 

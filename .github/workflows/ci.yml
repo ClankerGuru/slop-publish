@@ -23,8 +23,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.amper
-            ~/.cache/amper
+            ~/.cache/JetBrains/Amper
           key: ${{ runner.os }}-amper-${{ hashFiles('**/module.yaml', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-amper-

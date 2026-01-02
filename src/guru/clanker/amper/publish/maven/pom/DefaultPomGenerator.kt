@@ -95,7 +95,7 @@ $content</project>"""
     fun version(version: String) = element("version", version)
     fun packaging(type: String) = element("packaging", type)
     fun name(name: String) = element("name", name)
-    fun description(desc: String) = element("description", escapeXml(desc))
+    fun description(desc: String) = element("description", desc)
     fun url(url: String) = element("url", url)
 
     fun licenses(block: LicensesBuilder.() -> Unit) {
@@ -123,7 +123,7 @@ $content</project>"""
     }
 
     private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>$value</$name>")
+        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
     }
 
     private fun escapeXml(text: String): String {
@@ -150,7 +150,7 @@ class LicenseBuilder(private val content: StringBuilder, private val indent: Int
     fun name(name: String) = element("name", name)
     fun url(url: String) = element("url", url)
     private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>$value</$name>")
+        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
     }
 }
 
@@ -169,7 +169,7 @@ class DeveloperBuilder(private val content: StringBuilder, private val indent: I
     fun name(name: String) = element("name", name)
     fun email(email: String) = element("email", email)
     private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>$value</$name>")
+        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
     }
 }
 
@@ -178,6 +178,15 @@ class ScmBuilder(private val content: StringBuilder, private val indent: Int) {
     fun connection(conn: String) = element("connection", conn)
     fun developerConnection(conn: String) = element("developerConnection", conn)
     private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>$value</$name>")
+        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
     }
+}
+
+private fun escapeXml(text: String): String {
+    return text
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
 }

@@ -10,15 +10,26 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.client.request.forms.*
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.runBlocking
+import java.io.Closeable
+import java.nio.file.Files
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
 class GitHubPackagesPublisher(
     private val httpClient: HttpClient = defaultHttpClient(),
-    private val rateLimiter: RateLimiter = RateLimiter()
-) : PublishingService {
+    private val rateLimiter: RateLimiter = RateLimiter(),
+    private val ownsHttpClient: Boolean = true
+) : PublishingService, Closeable {
+
+    override fun close() {
+        if (ownsHttpClient) {
+            httpClient.close()
+        }
+    }
 
     override fun publish(publication: Publication, repository: Repository): PublishingResult {
         if (repository !is Repository.GitHubPackages) {
@@ -73,10 +84,12 @@ class GitHubPackagesPublisher(
 
         return try {
             runBlocking {
+                val file = artifact.file.toFile()
                 val response = httpClient.put(url) {
                     header("Authorization", "Bearer ${repository.token}")
                     header("Content-Type", contentTypeFor(artifact.extension))
-                    setBody(artifact.file.toFile().readBytes())
+                    header("Content-Length", Files.size(artifact.file).toString())
+                    setBody(ChannelProvider(Files.size(artifact.file)) { file.inputStream().toByteReadChannel() })
                 }
 
                 when (response.status) {

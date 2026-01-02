@@ -26,6 +26,6 @@
 - [x] 4.3 Configure JUnit platform runner
 
 ## 5. Verification
-- [x] 5.1 All 50 tests pass
+- [x] 5.1 All tests pass
 - [x] 5.2 Tests run in < 1 second
 - [x] 5.3 Architecture tests enforce layer boundaries
