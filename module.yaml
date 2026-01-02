@@ -20,6 +20,10 @@ dependencies:
   # kotlinx.serialization
   - $libs.kotlinx.serialization.core
   - $libs.kotlinx.serialization.json
+  - $libs.xmlutil.serialization
+  
+  # kotlinx-datetime
+  - $libs.kotlinx.datetime
   
   # YAML parsing
   - $libs.kaml

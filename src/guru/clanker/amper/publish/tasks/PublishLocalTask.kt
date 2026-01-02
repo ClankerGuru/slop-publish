@@ -83,12 +83,20 @@ private fun collectArtifactsLocal(
 }
 
 private fun findBuildDir(moduleDir: Path): Path {
+    // Find project root first (where project.yaml is), then use its build directory
     var current = moduleDir
+    while (current.parent != null) {
+        val projectYaml = current.resolve("project.yaml")
+        if (projectYaml.exists()) {
+            return current.resolve("build")
+        }
+        current = current.parent
+    }
+    // Fallback: look for existing build directory walking up
+    current = moduleDir
     while (current.parent != null) {
         val buildDir = current.resolve("build")
         if (buildDir.exists()) return buildDir
-        val projectYaml = current.resolve("project.yaml")
-        if (projectYaml.exists()) return current.resolve("build")
         current = current.parent
     }
     return moduleDir.resolve("build")

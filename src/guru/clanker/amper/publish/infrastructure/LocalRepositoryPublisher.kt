@@ -4,13 +4,13 @@ import guru.clanker.amper.publish.domain.model.*
 import guru.clanker.amper.publish.domain.service.PublishingService
 import guru.clanker.amper.publish.domain.service.ValidationError
 import guru.clanker.amper.publish.maven.resolver.ChecksumGenerator
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 class LocalRepositoryPublisher(
     private val localRepoPath: Path = defaultLocalRepo()
@@ -131,8 +131,11 @@ class LocalRepositoryPublisher(
     }
 
     private fun formatLastUpdated(): String {
-        val formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-        return Instant.now().atZone(ZoneOffset.UTC).format(formatter)
+        val now = Clock.System.now().toLocalDateTime(TimeZone.UTC)
+        return "%04d%02d%02d%02d%02d%02d".format(
+            now.year, now.monthNumber, now.dayOfMonth,
+            now.hour, now.minute, now.second
+        )
     }
 
     companion object {

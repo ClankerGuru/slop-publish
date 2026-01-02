@@ -2,7 +2,9 @@
 maven = "3.9.6"
 maven-resolver = "1.9.18"
 ktor = "2.3.7"
-kotlinx-serialization = "1.6.2"
+kotlinx-serialization = "1.7.3"
+kotlinx-datetime = "0.6.1"
+xmlutil = "0.90.3"
 kaml = "0.55.0"
 bouncy-castle = "1.82"
 konsist = "0.17.3"
@@ -31,6 +33,12 @@ ktor-serialization-kotlinx-xml = { module = "io.ktor:ktor-serialization-kotlinx-
 # kotlinx.serialization
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# kotlinx-datetime
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+
+# XML serialization
+xmlutil-serialization = { module = "io.github.pdvrieze.xmlutil:serialization-jvm", version.ref = "xmlutil" }
 
 # YAML parsing
 kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }

@@ -2,62 +2,63 @@ package guru.clanker.amper.publish.maven.pom
 
 import guru.clanker.amper.publish.domain.model.Artifact
 import guru.clanker.amper.publish.domain.model.Publication
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import nl.adaptivity.xmlutil.serialization.XML
+import nl.adaptivity.xmlutil.serialization.XmlElement
+import nl.adaptivity.xmlutil.serialization.XmlSerialName
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
 class DefaultPomGenerator {
 
+    private val xml = XML {
+        indent = 2
+        xmlDeclMode = nl.adaptivity.xmlutil.XmlDeclMode.None
+    }
+
     fun generateMinimal(publication: Publication): String {
-        return buildPom {
-            modelVersion("4.0.0")
-            groupId(publication.coordinates.groupId)
-            artifactId(publication.coordinates.artifactId)
-            version(publication.coordinates.version)
-            packaging("jar")
-        }
+        val pom = PomProject(
+            modelVersion = "4.0.0",
+            groupId = publication.coordinates.groupId,
+            artifactId = publication.coordinates.artifactId,
+            version = publication.coordinates.version,
+            packaging = "jar"
+        )
+        return formatPom(xml.encodeToString(PomProject.serializer(), pom))
     }
 
     fun generateFull(publication: Publication): String {
         val metadata = publication.pomMetadata
             ?: return generateMinimal(publication)
 
-        return buildPom {
-            modelVersion("4.0.0")
-            groupId(publication.coordinates.groupId)
-            artifactId(publication.coordinates.artifactId)
-            version(publication.coordinates.version)
-            packaging("jar")
-
-            name(metadata.name)
-            description(metadata.description)
-            url(metadata.url)
-
-            licenses {
-                metadata.licenses.forEach { license ->
-                    license {
-                        name(license.name)
-                        url(license.url)
-                    }
+        val pom = PomProject(
+            modelVersion = "4.0.0",
+            groupId = publication.coordinates.groupId,
+            artifactId = publication.coordinates.artifactId,
+            version = publication.coordinates.version,
+            packaging = "jar",
+            name = metadata.name,
+            description = metadata.description,
+            url = metadata.url,
+            licenses = PomLicenses(
+                licenses = metadata.licenses.map { license ->
+                    PomLicense(name = license.name, url = license.url)
                 }
-            }
-
-            developers {
-                metadata.developers.forEach { dev ->
-                    developer {
-                        id(dev.id)
-                        name(dev.name)
-                        email(dev.email)
-                    }
+            ),
+            developers = PomDevelopers(
+                developers = metadata.developers.map { dev ->
+                    PomDeveloper(id = dev.id, name = dev.name, email = dev.email)
                 }
-            }
-
-            scm {
-                url(metadata.scm.url)
-                connection(metadata.scm.connection)
-                metadata.scm.developerConnection?.let { developerConnection(it) }
-            }
-        }
+            ),
+            scm = PomScm(
+                url = metadata.scm.url,
+                connection = metadata.scm.connection,
+                developerConnection = metadata.scm.developerConnection
+            )
+        )
+        return formatPom(xml.encodeToString(PomProject.serializer(), pom))
     }
 
     fun generateToFile(publication: Publication, outputPath: Path): Artifact {
@@ -72,121 +73,67 @@ class DefaultPomGenerator {
         return Artifact(outputPath, null, "pom")
     }
 
-    private fun buildPom(block: PomBuilder.() -> Unit): String {
-        return PomBuilder().apply(block).build()
-    }
-}
-
-class PomBuilder {
-    private val content = StringBuilder()
-    private var indent = 1
-
-    fun build(): String {
-        return """<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
+    private fun formatPom(xmlContent: String): String {
+        val header = """<?xml version="1.0" encoding="UTF-8"?>"""
+        val content = xmlContent
+            .replace(Regex("<project[^>]*>"), """<project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-$content</project>"""
-    }
-
-    fun modelVersion(version: String) = element("modelVersion", version)
-    fun groupId(id: String) = element("groupId", id)
-    fun artifactId(id: String) = element("artifactId", id)
-    fun version(version: String) = element("version", version)
-    fun packaging(type: String) = element("packaging", type)
-    fun name(name: String) = element("name", name)
-    fun description(desc: String) = element("description", desc)
-    fun url(url: String) = element("url", url)
-
-    fun licenses(block: LicensesBuilder.() -> Unit) {
-        content.appendLine("${"  ".repeat(indent)}<licenses>")
-        indent++
-        LicensesBuilder(content, indent).apply(block)
-        indent--
-        content.appendLine("${"  ".repeat(indent)}</licenses>")
-    }
-
-    fun developers(block: DevelopersBuilder.() -> Unit) {
-        content.appendLine("${"  ".repeat(indent)}<developers>")
-        indent++
-        DevelopersBuilder(content, indent).apply(block)
-        indent--
-        content.appendLine("${"  ".repeat(indent)}</developers>")
-    }
-
-    fun scm(block: ScmBuilder.() -> Unit) {
-        content.appendLine("${"  ".repeat(indent)}<scm>")
-        indent++
-        ScmBuilder(content, indent).apply(block)
-        indent--
-        content.appendLine("${"  ".repeat(indent)}</scm>")
-    }
-
-    private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
-    }
-
-    private fun escapeXml(text: String): String {
-        return text
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\"", "&quot;")
-            .replace("'", "&apos;")
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">""")
+        return "$header\n$content"
     }
 }
 
-class LicensesBuilder(private val content: StringBuilder, private var indent: Int) {
-    fun license(block: LicenseBuilder.() -> Unit) {
-        content.appendLine("${"  ".repeat(indent)}<license>")
-        indent++
-        LicenseBuilder(content, indent).apply(block)
-        indent--
-        content.appendLine("${"  ".repeat(indent)}</license>")
-    }
-}
+@Serializable
+@XmlSerialName("project")
+data class PomProject(
+    @XmlElement(true) val modelVersion: String,
+    @XmlElement(true) val groupId: String,
+    @XmlElement(true) val artifactId: String,
+    @XmlElement(true) val version: String,
+    @XmlElement(true) val packaging: String,
+    @XmlElement(true) val name: String? = null,
+    @XmlElement(true) val description: String? = null,
+    @XmlElement(true) val url: String? = null,
+    val licenses: PomLicenses? = null,
+    val developers: PomDevelopers? = null,
+    val scm: PomScm? = null
+)
 
-class LicenseBuilder(private val content: StringBuilder, private val indent: Int) {
-    fun name(name: String) = element("name", name)
-    fun url(url: String) = element("url", url)
-    private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
-    }
-}
+@Serializable
+@XmlSerialName("licenses")
+data class PomLicenses(
+    @XmlElement(true)
+    @SerialName("license")
+    val licenses: List<PomLicense>
+)
 
-class DevelopersBuilder(private val content: StringBuilder, private var indent: Int) {
-    fun developer(block: DeveloperBuilder.() -> Unit) {
-        content.appendLine("${"  ".repeat(indent)}<developer>")
-        indent++
-        DeveloperBuilder(content, indent).apply(block)
-        indent--
-        content.appendLine("${"  ".repeat(indent)}</developer>")
-    }
-}
+@Serializable
+@XmlSerialName("license")
+data class PomLicense(
+    @XmlElement(true) val name: String,
+    @XmlElement(true) val url: String
+)
 
-class DeveloperBuilder(private val content: StringBuilder, private val indent: Int) {
-    fun id(id: String) = element("id", id)
-    fun name(name: String) = element("name", name)
-    fun email(email: String) = element("email", email)
-    private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
-    }
-}
+@Serializable
+@XmlSerialName("developers")
+data class PomDevelopers(
+    @XmlElement(true)
+    @SerialName("developer")
+    val developers: List<PomDeveloper>
+)
 
-class ScmBuilder(private val content: StringBuilder, private val indent: Int) {
-    fun url(url: String) = element("url", url)
-    fun connection(conn: String) = element("connection", conn)
-    fun developerConnection(conn: String) = element("developerConnection", conn)
-    private fun element(name: String, value: String) {
-        content.appendLine("${"  ".repeat(indent)}<$name>${escapeXml(value)}</$name>")
-    }
-}
+@Serializable
+@XmlSerialName("developer")
+data class PomDeveloper(
+    @XmlElement(true) val id: String,
+    @XmlElement(true) val name: String,
+    @XmlElement(true) val email: String
+)
 
-private fun escapeXml(text: String): String {
-    return text
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&apos;")
-}
+@Serializable
+@XmlSerialName("scm")
+data class PomScm(
+    @XmlElement(true) val url: String,
+    @XmlElement(true) val connection: String,
+    @XmlElement(true) val developerConnection: String? = null
+)
