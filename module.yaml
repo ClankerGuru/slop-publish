@@ -44,10 +44,15 @@ plugins:
     enabled: true
     groupId: guru.clanker
     artifactId: slop-publish
-    version: 1.0.2
+    version: 1.0.3
     artifacts:
       - jar
-    repositories: []
+      - sources
+      - javadoc
+    repositories:
+      - id: central
+        type: central
+        url: ""
     pom:
       name: Slop Publish
       description: Maven publishing plugin for JetBrains Amper build system

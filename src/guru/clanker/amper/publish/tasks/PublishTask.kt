@@ -2,9 +2,11 @@ package guru.clanker.amper.publish.tasks
 
 import guru.clanker.amper.publish.domain.model.*
 import guru.clanker.amper.publish.domain.service.ValidationError
+import guru.clanker.amper.publish.infrastructure.CentralPortalPublisher
 import guru.clanker.amper.publish.infrastructure.LocalRepositoryPublisher
 import guru.clanker.amper.publish.infrastructure.MavenRepositoryPublisher
 import guru.clanker.amper.publish.infrastructure.GitHubPackagesPublisher
+import guru.clanker.amper.publish.maven.ArtifactGenerator
 import guru.clanker.amper.publish.maven.pom.DefaultPomGenerator
 import guru.clanker.amper.publish.maven.signing.BouncyCastleSigner
 import guru.clanker.amper.publish.settings.*
@@ -37,8 +39,9 @@ fun publish(
     }
 
     val coordinates = SettingsMapper.toCoordinates(settings)
-    val artifacts = collectArtifacts(settings, moduleDir, coordinates)
     val pomMetadata = settings.pom?.let { SettingsMapper.toPomMetadata(it) }
+    val description = pomMetadata?.description ?: ""
+    val artifacts = collectArtifacts(settings, moduleDir, coordinates, description)
 
     val publication = Publication(
         coordinates = coordinates,
@@ -72,6 +75,7 @@ fun publish(
         }
 
         val publisher = when (repository) {
+            is Repository.CentralPortal -> CentralPortalPublisher()
             is Repository.Maven -> MavenRepositoryPublisher()
             is Repository.GitHubPackages -> GitHubPackagesPublisher()
             is Repository.Local -> LocalRepositoryPublisher()
@@ -93,11 +97,13 @@ private fun shouldSign(settings: PublishingSettings, repoId: String): Boolean {
 private fun collectArtifacts(
     settings: PublishingSettings,
     moduleDir: Path,
-    coordinates: Coordinates
+    coordinates: Coordinates,
+    description: String = ""
 ): List<Artifact> {
     val moduleName = moduleDir.fileName.toString()
     val buildDir = findBuildDir(moduleDir)
     val jarDir = buildDir.resolve("tasks/_${moduleName}_jarJvm")
+    val outputDir = buildDir.resolve("publish")
 
     return settings.artifacts.mapNotNull { type ->
         when (type.lowercase()) {
@@ -106,12 +112,23 @@ private fun collectArtifacts(
                 if (jarPath.exists()) Artifact(jarPath, null, "jar") else null
             }
             "sources" -> {
-                val sourcesPath = jarDir.resolve("$moduleName-sources.jar")
-                if (sourcesPath.exists()) Artifact(sourcesPath, "sources", "jar") else null
+                val existingPath = jarDir.resolve("$moduleName-sources.jar")
+                if (existingPath.exists()) {
+                    Artifact(existingPath, "sources", "jar")
+                } else {
+                    val srcDir = moduleDir.resolve("src")
+                    if (srcDir.exists()) {
+                        ArtifactGenerator.createSourcesJar(srcDir, outputDir, coordinates)
+                    } else null
+                }
             }
             "javadoc" -> {
-                val javadocPath = jarDir.resolve("$moduleName-javadoc.jar")
-                if (javadocPath.exists()) Artifact(javadocPath, "javadoc", "jar") else null
+                val existingPath = jarDir.resolve("$moduleName-javadoc.jar")
+                if (existingPath.exists()) {
+                    Artifact(existingPath, "javadoc", "jar")
+                } else {
+                    ArtifactGenerator.createJavadocJar(outputDir, coordinates, description)
+                }
             }
             else -> null
         }

@@ -14,6 +14,12 @@ object SettingsMapper {
 
     fun toRepository(settings: RepositorySettings): Repository {
         return when (settings.type.lowercase()) {
+            "central" -> Repository.CentralPortal(
+                id = settings.id,
+                url = settings.url.ifEmpty { "https://central.sonatype.com/api/v1/publisher/upload" },
+                token = settings.credentials?.password ?: System.getenv("CENTRAL_TOKEN") ?: "",
+                publishingType = Repository.CentralPortal.PublishingType.AUTOMATIC
+            )
             "github" -> Repository.GitHubPackages(
                 id = settings.id,
                 url = settings.url,

@@ -11,8 +11,10 @@ Maven publishing plugin for Amper build system.
 
 ## Features
 
-- Publish to Maven repositories (Maven Central, Nexus, Artifactory)
+- **Maven Central Portal** - Direct publishing via bundle upload API (recommended)
+- Publish to Maven repositories (Nexus, Artifactory)
 - Publish to GitHub Packages
+- **Auto-generate sources & javadoc JARs** - No manual JAR creation needed
 - PGP signing with Bouncy Castle
 - Declarative YAML configuration via Amper plugin settings
 
@@ -52,7 +54,9 @@ plugins:
 
 ## Configuration
 
-Full configuration example in `module.yaml`:
+### Maven Central Portal (Recommended)
+
+The simplest way to publish to Maven Central:
 
 ```yaml
 plugins:
@@ -63,15 +67,73 @@ plugins:
     version: 1.0.0
     artifacts:
       - jar
+      - sources   # Auto-generated from source files
+      - javadoc   # Auto-generated (empty placeholder)
     
     repositories:
+      - id: central
+        type: central   # Uses Maven Central Portal bundle API
+        url: ""         # Uses default Central Portal URL
+    
+    pom:
+      name: My Library
+      description: A useful library
+      url: https://github.com/owner/repo
+      licenses:
+        - name: MIT
+          url: https://opensource.org/licenses/MIT
+      developers:
+        - id: dev1
+          name: Developer One
+      scm:
+        url: https://github.com/owner/repo
+        connection: scm:git:git://github.com/owner/repo.git
+        developerConnection: scm:git:ssh://github.com/owner/repo.git
+    
+    signing:
+      enabled: true
+      credentials:
+        file: ./local.properties
+```
+
+### Repository Types
+
+| Type | Use Case | Auth |
+|------|----------|------|
+| `central` | Maven Central Portal (recommended) | `CENTRAL_TOKEN` env var |
+| `github` | GitHub Packages | `GITHUB_TOKEN` env var |
+| `maven` | Generic Maven repos (Nexus, Artifactory) | Username/password |
+
+### Full Configuration Example
+
+```yaml
+plugins:
+  slop-publish:
+    enabled: true
+    groupId: com.example
+    artifactId: my-library
+    version: 1.0.0
+    artifacts:
+      - jar
+      - sources
+      - javadoc
+    
+    repositories:
+      # Maven Central Portal - auto publishes after validation
+      - id: central
+        type: central
+        url: ""
+        publishingType: AUTOMATIC  # or USER_MANAGED for manual release
+      
+      # GitHub Packages
       - id: github
         type: github
         url: https://maven.pkg.github.com/owner/repo
       
-      - id: central
+      # Generic Maven repository
+      - id: nexus
         type: maven
-        url: https://central.sonatype.com/api/v1/publisher/upload
+        url: https://nexus.example.com/repository/releases
     
     pom:
       name: My Library
@@ -96,7 +158,14 @@ plugins:
 
 ## Environment Variables
 
-Signing credentials are read from environment variables (never put secrets in config files):
+### Repository Authentication
+
+| Env Var | Description |
+|---------|-------------|
+| `CENTRAL_TOKEN` | Maven Central Portal token (from https://central.sonatype.com/account) |
+| `GITHUB_TOKEN` | GitHub token for GitHub Packages |
+
+### Signing Credentials
 
 | Property | Env Var Fallback | Description |
 |----------|------------------|-------------|
@@ -171,15 +240,19 @@ Add secrets in your repository: **Settings → Secrets and variables → Actions
 
 | Secret Name | Value |
 |-------------|-------|
+| `GPG_KEY_ID` | Your GPG key ID (e.g., `65C9CBAA`) |
 | `GPG_SECRET_KEY` | Contents of your armored private key |
 | `GPG_PASSPHRASE` | Your GPG passphrase |
+| `CENTRAL_TOKEN` | Maven Central Portal token |
 
 Use in workflow:
 ```yaml
-- name: Publish
+- name: Publish to Maven Central
   env:
+    GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
     GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
     GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+    CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
   run: ./amper task :my-module:publish@slop-publish
 ```
 
