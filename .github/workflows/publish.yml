@@ -86,7 +86,7 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir -p staging
-          cp build/jvm/main/slop-publish-jvm.jar staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar
+          cp build/tasks/_slop-publish_jarJvm/slop-publish-jvm.jar staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar
           cp pom.xml staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom
           
           cd staging
