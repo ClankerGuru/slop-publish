@@ -6,6 +6,8 @@ kotlinx-serialization = "1.6.2"
 kaml = "0.55.0"
 bouncy-castle = "1.77"
 konsist = "0.17.3"
+testcontainers = "1.19.3"
+junit = "5.10.1"
 
 [libraries]
 # Maven Core
@@ -39,3 +41,6 @@ bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncy-cas
 
 # Testing
 konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

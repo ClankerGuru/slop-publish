@@ -31,6 +31,9 @@ dependencies:
 test-dependencies:
   - $kotlin.test
   - $libs.konsist
+  - $libs.testcontainers
+  - $libs.testcontainers.junit
+  - $libs.junit.jupiter
 
 settings:
   jvm:
