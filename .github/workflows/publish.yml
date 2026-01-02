@@ -28,9 +28,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: ossrh
-          server-username: OSSRH_USERNAME
-          server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
           gpg-passphrase: GPG_PASSPHRASE
       
@@ -48,73 +45,100 @@ jobs:
       - name: Test
         run: ./amper test
       
-      - name: Generate POM
-        run: |
-          cat > pom.xml << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <project xmlns="http://maven.apache.org/POM/4.0.0"
-                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>${{ env.GROUP_ID }}</groupId>
-            <artifactId>${{ env.ARTIFACT_ID }}</artifactId>
-            <version>${{ env.VERSION }}</version>
-            <packaging>jar</packaging>
-            <name>Slop Publish</name>
-            <description>Maven publishing plugin for JetBrains Amper build system</description>
-            <url>https://github.com/ClankerGuru/slop-publish</url>
-            <licenses>
-              <license>
-                <name>MIT</name>
-                <url>https://opensource.org/licenses/MIT</url>
-              </license>
-            </licenses>
-            <developers>
-              <developer>
-                <id>clankerguru</id>
-                <name>Clanker Guru</name>
-              </developer>
-            </developers>
-            <scm>
-              <url>https://github.com/ClankerGuru/slop-publish</url>
-              <connection>scm:git:git://github.com/ClankerGuru/slop-publish.git</connection>
-              <developerConnection>scm:git:ssh://github.com/ClankerGuru/slop-publish.git</developerConnection>
-            </scm>
-          </project>
-          EOF
-      
-      - name: Prepare artifacts
-        run: |
-          mkdir -p staging
-          cp build/tasks/_slop-publish_jarJvm/slop-publish-jvm.jar staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar
-          cp pom.xml staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom
-          
-          cd staging
-          jar cvf ${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-sources.jar -C ../src .
-          jar cvf ${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-javadoc.jar -C ../src .
-      
-      - name: Sign artifacts
+      - name: Prepare bundle for Central Portal
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          cd staging
+          GROUP_PATH=$(echo "${{ env.GROUP_ID }}" | tr '.' '/')
+          BUNDLE_DIR="bundle/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}"
+          mkdir -p "$BUNDLE_DIR"
+          
+          # Copy main JAR
+          cp build/tasks/_slop-publish_jarJvm/slop-publish-jvm.jar "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar"
+          
+          # Create sources JAR
+          jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-sources.jar" -C src .
+          
+          # Create javadoc JAR (placeholder)
+          mkdir -p javadoc
+          echo "<html><body>Javadoc placeholder</body></html>" > javadoc/index.html
+          jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-javadoc.jar" -C javadoc .
+          
+          # Generate POM
+          cat > "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>guru.clanker</groupId>
+  <artifactId>slop-publish</artifactId>
+  <version>${VERSION}</version>
+  <packaging>jar</packaging>
+  <name>Slop Publish</name>
+  <description>Maven publishing plugin for JetBrains Amper build system</description>
+  <url>https://github.com/ClankerGuru/slop-publish</url>
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>https://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+  <developers>
+    <developer>
+      <id>clankerguru</id>
+      <name>Clanker Guru</name>
+    </developer>
+  </developers>
+  <scm>
+    <url>https://github.com/ClankerGuru/slop-publish</url>
+    <connection>scm:git:git://github.com/ClankerGuru/slop-publish.git</connection>
+    <developerConnection>scm:git:ssh://github.com/ClankerGuru/slop-publish.git</developerConnection>
+  </scm>
+</project>
+EOF
+          
+          # Generate checksums and signatures for each artifact
+          cd "$BUNDLE_DIR"
           for file in *.jar *.pom; do
+            # MD5
+            md5sum "$file" | cut -d' ' -f1 > "$file.md5"
+            # SHA1  
+            sha1sum "$file" | cut -d' ' -f1 > "$file.sha1"
+            # GPG signature
             gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" -ab "$file"
           done
+          
+          # Create the bundle zip
+          cd ${{ github.workspace }}
+          cd bundle
+          zip -r ../bundle.zip .
+          
+          echo "Bundle contents:"
+          unzip -l ../bundle.zip
       
-      - name: Deploy to Maven Central
+      - name: Upload to Central Portal
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
         run: |
-          GROUP_PATH=$(echo "${{ env.GROUP_ID }}" | tr '.' '/')
-          cd staging
-          for file in *.jar *.pom; do
-            echo "Uploading $file..."
-            curl -f -u "$OSSRH_USERNAME:$OSSRH_PASSWORD" \
-              --upload-file "$file" \
-              "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/$file"
-            curl -f -u "$OSSRH_USERNAME:$OSSRH_PASSWORD" \
-              --upload-file "$file.asc" \
-              "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/$file.asc"
-          done
+          echo "Uploading bundle to Central Portal..."
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $CENTRAL_TOKEN" \
+            -F "bundle=@bundle.zip" \
+            "https://central.sonatype.com/api/v1/publisher/upload?name=${{ env.ARTIFACT_ID }}-${{ env.VERSION }}&publishingType=AUTOMATIC")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response: $BODY"
+          echo "HTTP Code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Upload successful!"
+            echo "Deployment ID: $BODY"
+          else
+            echo "Upload failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
