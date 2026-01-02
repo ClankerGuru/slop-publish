@@ -1,0 +1,43 @@
+product: jvm/amper-plugin
+
+dependencies:
+  # Maven Core
+  - $libs.maven.core
+  - $libs.maven.model
+  - $libs.maven.resolver.api
+  - $libs.maven.resolver.impl
+  - $libs.maven.resolver.connector.basic
+  - $libs.maven.resolver.transport.http
+  - $libs.maven.resolver.transport.file
+  
+  # Ktor Client
+  - $libs.ktor.client.core
+  - $libs.ktor.client.cio
+  - $libs.ktor.client.content.negotiation
+  - $libs.ktor.serialization.kotlinx.json
+  - $libs.ktor.serialization.kotlinx.xml
+  
+  # kotlinx.serialization
+  - $libs.kotlinx.serialization.core
+  - $libs.kotlinx.serialization.json
+  
+  # YAML parsing
+  - $libs.kaml
+  
+  # Bouncy Castle (signing)
+  - $libs.bcpg
+  - $libs.bcprov
+
+test-dependencies:
+  - $kotlin.test
+  - $libs.konsist
+
+settings:
+  jvm:
+    release: 17
+  kotlin:
+    languageVersion: 2.0
+    serialization: json
+
+pluginInfo:
+  settingsClass: guru.clanker.amper.publish.settings.PublishingSettings

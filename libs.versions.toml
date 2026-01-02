@@ -1,0 +1,41 @@
+[versions]
+maven = "3.9.6"
+maven-resolver = "1.9.18"
+ktor = "2.3.7"
+kotlinx-serialization = "1.6.2"
+kaml = "0.55.0"
+bouncy-castle = "1.77"
+konsist = "0.17.3"
+
+[libraries]
+# Maven Core
+maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven" }
+maven-model = { module = "org.apache.maven:maven-model", version.ref = "maven" }
+
+# Maven Resolver
+maven-resolver-api = { module = "org.apache.maven.resolver:maven-resolver-api", version.ref = "maven-resolver" }
+maven-resolver-impl = { module = "org.apache.maven.resolver:maven-resolver-impl", version.ref = "maven-resolver" }
+maven-resolver-connector-basic = { module = "org.apache.maven.resolver:maven-resolver-connector-basic", version.ref = "maven-resolver" }
+maven-resolver-transport-http = { module = "org.apache.maven.resolver:maven-resolver-transport-http", version.ref = "maven-resolver" }
+maven-resolver-transport-file = { module = "org.apache.maven.resolver:maven-resolver-transport-file", version.ref = "maven-resolver" }
+
+# Ktor Client
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-serialization-kotlinx-xml = { module = "io.ktor:ktor-serialization-kotlinx-xml", version.ref = "ktor" }
+
+# kotlinx.serialization
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# YAML parsing
+kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }
+
+# Bouncy Castle (signing)
+bcpg = { module = "org.bouncycastle:bcpg-jdk18on", version.ref = "bouncy-castle" }
+bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncy-castle" }
+
+# Testing
+konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
