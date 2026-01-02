@@ -8,5 +8,6 @@ interface SigningSettings {
     val key: String get() = ""
     val password: String get() = ""
     val keyId: String get() = ""
+    val credentials: SigningCredentialsSettings? get() = null
     val skipForRepositories: List<String> get() = emptyList()
 }

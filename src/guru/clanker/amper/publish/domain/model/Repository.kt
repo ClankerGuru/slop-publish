@@ -68,7 +68,7 @@ sealed class Repository {
      */
     data class Local(
         override val id: String,
-        override val url: String  // file:// URL or path
+        override val url: String
     ) : Repository() {
         init {
             require(id.isNotBlank()) { "Repository id must not be blank" }
@@ -76,10 +76,33 @@ sealed class Repository {
         }
 
         companion object {
-            /** Default local Maven repository at ~/.m2/repository */
             fun default(): Local {
                 val m2 = System.getProperty("user.home") + "/.m2/repository"
                 return Local(id = "local", url = "file://$m2")
+            }
+        }
+    }
+
+    /**
+     * Maven Central Portal (new Sonatype Central publishing API).
+     * Uses bundle zip upload instead of traditional Nexus staging.
+     */
+    data class CentralPortal(
+        override val id: String,
+        override val url: String = "https://central.sonatype.com/api/v1/publisher/upload",
+        val token: String,
+        val publishingType: PublishingType = PublishingType.AUTOMATIC
+    ) : Repository() {
+        init {
+            require(id.isNotBlank()) { "Repository id must not be blank" }
+            require(token.isNotBlank()) { "Central Portal token must not be blank" }
+        }
+
+        enum class PublishingType { AUTOMATIC, USER_MANAGED }
+
+        companion object {
+            fun default(token: String): CentralPortal {
+                return CentralPortal(id = "central", token = token)
             }
         }
     }

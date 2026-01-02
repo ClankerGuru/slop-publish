@@ -6,13 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (without v prefix, e.g., 1.0.1)'
+        description: 'Version to publish (e.g., 1.0.3)'
         required: true
         type: string
-
-env:
-  GROUP_ID: guru.clanker
-  ARTIFACT_ID: slop-publish
 
 jobs:
   publish:
@@ -26,129 +22,34 @@ jobs:
       - name: Determine version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
           else
-            VERSION="${GITHUB_REF_NAME#v}"
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Publishing guru.clanker:slop-publish:$VERSION"
       
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
       
       - name: Cache Amper
         uses: actions/cache@v4
         with:
           path: ~/.cache/JetBrains/Amper
           key: ${{ runner.os }}-amper-${{ hashFiles('**/module.yaml', '**/libs.versions.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-amper-
+          restore-keys: ${{ runner.os }}-amper-
       
-      - name: Build
-        run: ./amper build
+      - name: Build and test
+        run: |
+          sed -i "s/version: .*/version: ${{ env.VERSION }}/" module.yaml
+          ./amper build
+          ./amper test
       
-      - name: Test
-        run: ./amper test
-      
-      - name: Prepare bundle for Central Portal
+      - name: Publish to Maven Central
         env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: |
-          GROUP_PATH=$(echo "${{ env.GROUP_ID }}" | tr '.' '/')
-          BUNDLE_DIR="bundle/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}"
-          mkdir -p "$BUNDLE_DIR"
-          
-          # Copy main JAR
-          cp build/tasks/_slop-publish_jarJvm/slop-publish-jvm.jar "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar"
-          
-          # Create sources JAR
-          jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-sources.jar" -C src .
-          
-          # Create javadoc JAR (placeholder)
-          mkdir -p javadoc
-          echo "<html><body>Javadoc placeholder</body></html>" > javadoc/index.html
-          jar cvf "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-javadoc.jar" -C javadoc .
-          
-          # Generate POM
-          cat > "$BUNDLE_DIR/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>guru.clanker</groupId>
-  <artifactId>slop-publish</artifactId>
-  <version>${VERSION}</version>
-  <packaging>jar</packaging>
-  <name>Slop Publish</name>
-  <description>Maven publishing plugin for JetBrains Amper build system</description>
-  <url>https://github.com/ClankerGuru/slop-publish</url>
-  <licenses>
-    <license>
-      <name>MIT License</name>
-      <url>https://opensource.org/licenses/MIT</url>
-    </license>
-  </licenses>
-  <developers>
-    <developer>
-      <id>clankerguru</id>
-      <name>Clanker Guru</name>
-    </developer>
-  </developers>
-  <scm>
-    <url>https://github.com/ClankerGuru/slop-publish</url>
-    <connection>scm:git:git://github.com/ClankerGuru/slop-publish.git</connection>
-    <developerConnection>scm:git:ssh://github.com/ClankerGuru/slop-publish.git</developerConnection>
-  </scm>
-</project>
-EOF
-          
-          # Generate checksums and signatures for each artifact
-          cd "$BUNDLE_DIR"
-          for file in *.jar *.pom; do
-            # MD5
-            md5sum "$file" | cut -d' ' -f1 > "$file.md5"
-            # SHA1  
-            sha1sum "$file" | cut -d' ' -f1 > "$file.sha1"
-            # GPG signature
-            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" -ab "$file"
-          done
-          
-          # Create the bundle zip
-          cd ${{ github.workspace }}
-          cd bundle
-          zip -r ../bundle.zip .
-          
-          echo "Bundle contents:"
-          unzip -l ../bundle.zip
-      
-      - name: Upload to Central Portal
-        env:
           CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
-        run: |
-          echo "Uploading bundle to Central Portal..."
-          
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST \
-            -H "Authorization: Bearer $CENTRAL_TOKEN" \
-            -F "bundle=@bundle.zip" \
-            "https://central.sonatype.com/api/v1/publisher/upload?name=${{ env.ARTIFACT_ID }}-${{ env.VERSION }}&publishingType=AUTOMATIC")
-          
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "Response: $BODY"
-          echo "HTTP Code: $HTTP_CODE"
-          
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "Upload successful!"
-            echo "Deployment ID: $BODY"
-          else
-            echo "Upload failed with HTTP $HTTP_CODE"
-            exit 1
-          fi
+        run: ./amper task :slop-publish:publish@slop-publish
