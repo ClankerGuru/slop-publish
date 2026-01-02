@@ -9,6 +9,15 @@
 
 Maven publishing plugin for Amper build system.
 
+> **Note**: This plugin may be deprecated if JetBrains adds native Maven publishing support to Amper.
+> We'll update this README if that happens.
+
+## Current Limitation
+
+**Amper does not yet support importing plugins from Maven repositories.** You must include the plugin source in your project. See [Installation](#installation) for options.
+
+This is an Amper limitation, not a plugin limitation. JetBrains is aware and may add external plugin support in a future release. Track progress at [JetBrains/amper](https://github.com/JetBrains/amper).
+
 ## Features
 
 - **Maven Central Portal** - Direct publishing via bundle upload API (recommended)
@@ -25,7 +34,57 @@ Maven publishing plugin for Amper build system.
 
 ## Installation
 
-Add the plugin to your `module.yaml`:
+Since Amper doesn't support external plugin imports yet, you need to include the plugin source in your project.
+
+### Option 1: Git Submodule (Recommended)
+
+```bash
+# Add as submodule
+git submodule add https://github.com/ClankerGuru/slop-publish.git plugins/slop-publish
+
+# Update your project.yaml
+```
+
+**project.yaml:**
+```yaml
+modules:
+  - .
+  - plugins/slop-publish   # Add plugin as a module
+
+plugins:
+  - ./plugins/slop-publish  # Make plugin available
+```
+
+### Option 2: Copy Source
+
+Download or clone the repository and copy it into your project:
+
+```bash
+git clone https://github.com/ClankerGuru/slop-publish.git plugins/slop-publish
+rm -rf plugins/slop-publish/.git  # Remove git history if not using submodule
+```
+
+Then add the same `project.yaml` configuration as above.
+
+### Option 3: Download Script
+
+Create `scripts/fetch-plugin.sh`:
+```bash
+#!/bin/bash
+VERSION="${1:-1.0.5}"
+mkdir -p plugins
+curl -sL "https://github.com/ClankerGuru/slop-publish/archive/refs/tags/v${VERSION}.tar.gz" | \
+  tar -xz -C plugins
+mv plugins/slop-publish-${VERSION} plugins/slop-publish
+```
+
+Run: `./scripts/fetch-plugin.sh 1.0.5`
+
+---
+
+### Enable in Your Module
+
+Once the plugin is in your project, enable it in your `module.yaml`:
 
 ```yaml
 plugins:
