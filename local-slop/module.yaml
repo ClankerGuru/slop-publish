@@ -1,0 +1,25 @@
+product: jvm/lib
+
+plugins:
+  slop-publish:
+    enabled: true
+    groupId: com.example.test
+    artifactId: test-lib
+    version: 0.1.0-SNAPSHOT
+    artifacts:
+      - jar
+    repositories: []
+    pom:
+      name: Test Library
+      description: A test library for plugin validation (LOCAL TESTING ONLY)
+      url: https://github.com/example/test-lib
+      licenses:
+        - name: MIT
+          url: https://opensource.org/licenses/MIT
+      developers:
+        - id: tester
+          name: Test Developer
+          email: test@example.com
+      scm:
+        url: https://github.com/example/test-lib
+        connection: scm:git:git://github.com/example/test-lib.git

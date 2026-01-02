@@ -1,0 +1,9 @@
+build/
+.amper/
+.gradle/
+.idea/
+*.iml
+.DS_Store
+.opencode/
+.claude/
+.sisyphus/

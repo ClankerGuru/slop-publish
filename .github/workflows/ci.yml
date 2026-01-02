@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Cache Amper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/JetBrains/Amper
+          key: ${{ runner.os }}-amper-${{ hashFiles('**/module.yaml', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-amper-
+      
+      - name: Build
+        run: ./amper build
+      
+      - name: Test
+        run: ./amper test

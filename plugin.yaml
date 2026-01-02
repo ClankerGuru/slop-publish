@@ -1,0 +1,24 @@
+tasks:
+  publish:
+    action: !guru.clanker.amper.publish.tasks.publish
+      settings: ${pluginSettings}
+      moduleDir: ${module.rootDir}
+      target: ${pluginSettings.defaultTarget}
+      dryRun: false
+
+  publishLocal:
+    action: !guru.clanker.amper.publish.tasks.publishLocal
+      settings: ${pluginSettings}
+      moduleDir: ${module.rootDir}
+
+  validate:
+    action: !guru.clanker.amper.publish.tasks.validate
+      settings: ${pluginSettings}
+      moduleDir: ${module.rootDir}
+
+  publishDryRun:
+    action: !guru.clanker.amper.publish.tasks.publish
+      settings: ${pluginSettings}
+      moduleDir: ${module.rootDir}
+      target: ${pluginSettings.defaultTarget}
+      dryRun: true
