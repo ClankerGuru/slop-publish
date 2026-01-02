@@ -35,7 +35,7 @@ class PublishIntegrationTest {
         val reposilite: GenericContainer<*> = GenericContainer("dzikoysk/reposilite:3.5.10")
             .withExposedPorts(REPOSILITE_PORT)
             .withEnv("REPOSILITE_OPTS", "--token admin:secret")
-            .waitingFor(Wait.forHttp("/api/status/instance").forStatusCode(200))
+            .waitingFor(Wait.forLogMessage(".*Reposilite has been started.*\\n", 1))
 
         private lateinit var repoUrl: String
 
