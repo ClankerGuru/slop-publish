@@ -5,7 +5,9 @@ import guru.clanker.amper.publish.infrastructure.MavenRepositoryPublisher
 import guru.clanker.amper.publish.infrastructure.RetryPolicy
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIf
 import org.junit.jupiter.api.io.TempDir
+import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
@@ -23,12 +25,24 @@ import kotlin.test.assertTrue
  * Integration tests for publishing artifacts to a real Maven repository.
  * 
  * Uses Reposilite - a lightweight Maven repository - in a Testcontainer.
+ * 
+ * These tests are skipped when Docker is not available.
  */
 @Testcontainers
+@EnabledIf("isDockerAvailable")
 class PublishIntegrationTest {
 
     companion object {
         private const val REPOSILITE_PORT = 8080
+
+        @JvmStatic
+        fun isDockerAvailable(): Boolean {
+            return try {
+                DockerClientFactory.instance().isDockerAvailable
+            } catch (e: Exception) {
+                false
+            }
+        }
 
         @Container
         @JvmStatic
