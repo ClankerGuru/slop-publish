@@ -1,42 +1,43 @@
-name: Publish
+name: Publish to Maven Central
 
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      target:
-        description: 'Publish target (default, github, maven-central)'
-        required: false
-        default: 'default'
-      dry_run:
-        description: 'Dry run (validate only)'
-        type: boolean
-        required: false
-        default: false
+
+env:
+  GROUP_ID: guru.clanker
+  ARTIFACT_ID: slop-publish
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Extract version from release tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Publishing guru.clanker:slop-publish:$VERSION"
       
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          server-id: ossrh
+          server-username: OSSRH_USERNAME
+          server-password: OSSRH_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
+          gpg-passphrase: GPG_PASSPHRASE
       
       - name: Cache Amper
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.amper
-            ~/.cache/amper
+          path: ~/.cache/JetBrains/Amper
           key: ${{ runner.os }}-amper-${{ hashFiles('**/module.yaml', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-amper-
@@ -47,20 +48,73 @@ jobs:
       - name: Test
         run: ./amper test
       
-      - name: Validate publishing configuration
-        run: ./amper task :slop-publish:validate@slop-publish
+      - name: Generate POM
+        run: |
+          cat > pom.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>${{ env.GROUP_ID }}</groupId>
+            <artifactId>${{ env.ARTIFACT_ID }}</artifactId>
+            <version>${{ env.VERSION }}</version>
+            <packaging>jar</packaging>
+            <name>Slop Publish</name>
+            <description>Maven publishing plugin for JetBrains Amper build system</description>
+            <url>https://github.com/ClankerGuru/slop-publish</url>
+            <licenses>
+              <license>
+                <name>MIT</name>
+                <url>https://opensource.org/licenses/MIT</url>
+              </license>
+            </licenses>
+            <developers>
+              <developer>
+                <id>clankerguru</id>
+                <name>Clanker Guru</name>
+              </developer>
+            </developers>
+            <scm>
+              <url>https://github.com/ClankerGuru/slop-publish</url>
+              <connection>scm:git:git://github.com/ClankerGuru/slop-publish.git</connection>
+              <developerConnection>scm:git:ssh://github.com/ClankerGuru/slop-publish.git</developerConnection>
+            </scm>
+          </project>
+          EOF
       
-      - name: Publish (Dry Run)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: ./amper task :slop-publish:publishDryRun@slop-publish
+      - name: Prepare artifacts
+        run: |
+          mkdir -p staging
+          cp build/jvm/main/slop-publish-jvm.jar staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.jar
+          cp pom.xml staging/${{ env.ARTIFACT_ID }}-${{ env.VERSION }}.pom
+          
+          cd staging
+          jar cvf ${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-sources.jar -C ../src .
+          jar cvf ${{ env.ARTIFACT_ID }}-${{ env.VERSION }}-javadoc.jar -C ../src .
       
-      - name: Publish
-        if: ${{ github.event.inputs.dry_run != 'true' }}
+      - name: Sign artifacts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          cd staging
+          for file in *.jar *.pom; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" -ab "$file"
+          done
+      
+      - name: Deploy to Maven Central
+        env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
-        run: ./amper task :slop-publish:publish@slop-publish
+        run: |
+          GROUP_PATH=$(echo "${{ env.GROUP_ID }}" | tr '.' '/')
+          cd staging
+          for file in *.jar *.pom; do
+            echo "Uploading $file..."
+            curl -f -u "$OSSRH_USERNAME:$OSSRH_PASSWORD" \
+              --upload-file "$file" \
+              "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/$file"
+            curl -f -u "$OSSRH_USERNAME:$OSSRH_PASSWORD" \
+              --upload-file "$file.asc" \
+              "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/${GROUP_PATH}/${{ env.ARTIFACT_ID }}/${{ env.VERSION }}/$file.asc"
+          done

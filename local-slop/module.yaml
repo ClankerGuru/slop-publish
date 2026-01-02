@@ -8,9 +8,10 @@ plugins:
     version: 0.1.0-SNAPSHOT
     artifacts:
       - jar
+    repositories: []
     pom:
       name: Test Library
-      description: A test library for plugin validation
+      description: A test library for plugin validation (LOCAL TESTING ONLY)
       url: https://github.com/example/test-lib
       licenses:
         - name: MIT
