@@ -38,11 +38,21 @@ Since Amper doesn't support external plugin imports yet, you need to include the
 
 ### Option 1: Git Submodule (Recommended)
 
+Git submodules let you pin a specific version and update easily.
+
+**Initial setup:**
 ```bash
-# Add as submodule
+# Add the plugin as a submodule
 git submodule add https://github.com/ClankerGuru/slop-publish.git plugins/slop-publish
 
-# Update your project.yaml
+# Pin to a specific version (recommended)
+cd plugins/slop-publish
+git checkout v1.0.5
+cd ../..
+
+# Commit the submodule reference
+git add .gitmodules plugins/slop-publish
+git commit -m "Add slop-publish plugin v1.0.5"
 ```
 
 **project.yaml:**
@@ -53,6 +63,25 @@ modules:
 
 plugins:
   - ./plugins/slop-publish  # Make plugin available
+```
+
+**For teammates cloning your repo:**
+```bash
+# Clone with submodules
+git clone --recurse-submodules https://github.com/your/project.git
+
+# Or if already cloned without submodules
+git submodule update --init --recursive
+```
+
+**Updating to a new version:**
+```bash
+cd plugins/slop-publish
+git fetch --tags
+git checkout v1.0.6  # or desired version
+cd ../..
+git add plugins/slop-publish
+git commit -m "Update slop-publish to v1.0.6"
 ```
 
 ### Option 2: Copy Source
